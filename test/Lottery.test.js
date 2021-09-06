@@ -18,4 +18,82 @@ describe('Lottery contract', () => {
     it('Successfully deploys contract', () => {
         assert.ok(lottery.options.address);
     });
+
+    it('Adds one player to the lottery', async () => {
+        await lottery.methods.enter().send({
+            from: accounts[0],
+            value: web3.utils.toWei('0.02', 'ether'),
+        });
+
+        const players = await lottery.methods.getPlayers().call();
+
+        assert.equal(accounts[0], players[0]);
+        assert.equal(1, players.length);
+    });
+
+    it('Adds multiple players to the lottery', async () => {
+        await lottery.methods.enter().send({
+            from: accounts[0],
+            value: web3.utils.toWei('0.02', 'ether'),
+        });
+
+        await lottery.methods.enter().send({
+            from: accounts[1],
+            value: web3.utils.toWei('0.02', 'ether'),
+        });
+
+        await lottery.methods.enter().send({
+            from: accounts[2],
+            value: web3.utils.toWei('0.02', 'ether'),
+        });
+
+        const players = await lottery.methods.getPlayers().call();
+
+        assert.equal(accounts[0], players[0]);
+        assert.equal(accounts[1], players[1]);
+        assert.equal(accounts[2], players[2]);
+        assert.equal(3, players.length);
+    });
+
+    it('Requires a minimum amount of ether to enter', async () => {
+        try {
+            await lottery.methods.enter().send({
+                from: accounts[0],
+                value: '200',
+            });
+            assert(false);
+        } catch (err) {
+            assert(err);
+        }
+    });
+
+    it('Only manager can call pickWinner', async () => {
+        try {
+            lottery.methods().pickWinner().send({
+                from: accounts[1],
+            });
+            assert(false);
+        } catch (err) {
+            assert(err);
+        }
+    });
+
+    it('Sends money to the winner and resets the players array', async () => {
+        await lottery.methods.enter().send({
+            from: accounts[0],
+            value: web3.utils.toWei('1', 'ether'),
+        });
+
+        const initialBalance = await web3.eth.getBalance(accounts[0]);
+
+        await lottery.methods.pickWinner().send({
+            from: accounts[0],
+        });
+
+        const endingBalance = await web3.eth.getBalance(accounts[0]);
+        const difference = endingBalance - initialBalance;
+
+
+        assert(initialBalance < endingBalance);
+    });
 });
